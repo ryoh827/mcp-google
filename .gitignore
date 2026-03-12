@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.js.map
+
+# Credentials and tokens (never commit these)
+credentials.json
+token.json
+
+# Environment
+.env
+.env.local

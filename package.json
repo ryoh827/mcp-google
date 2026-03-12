@@ -1,0 +1,37 @@
+{
+  "name": "mcp-gcal",
+  "version": "1.0.0",
+  "description": "MCP server for Google Calendar",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "mcp-gcal": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "auth": "tsx src/auth.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ryoh827/mcp-gcal.git"
+  },
+  "keywords": ["mcp", "google-calendar", "model-context-protocol"],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ryoh827/mcp-gcal/issues"
+  },
+  "homepage": "https://github.com/ryoh827/mcp-gcal#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "googleapis": "^171.4.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
