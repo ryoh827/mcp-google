@@ -49,6 +49,14 @@ npm run build
 
 ### Claude Desktop / Claude Code
 
+#### Claude Code CLI
+
+```bash
+claude mcp add gcal node /path/to/mcp-gcal/dist/index.js
+```
+
+#### JSON configuration
+
 Add to your MCP configuration:
 
 ```json
