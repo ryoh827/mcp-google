@@ -1,9 +1,12 @@
 import { google } from "googleapis";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as readline from "node:readline";
+import * as http from "node:http";
+import { URL } from "node:url";
 
 const SCOPES = ["https://www.googleapis.com/auth/calendar"];
+const REDIRECT_PORT = 3000;
+const REDIRECT_URI = `http://localhost:${REDIRECT_PORT}`;
 
 interface Credentials {
   installed?: {
@@ -52,7 +55,7 @@ export function createOAuth2Client(credentials: Credentials) {
   return new google.auth.OAuth2(
     creds.client_id,
     creds.client_secret,
-    creds.redirect_uris[0]
+    REDIRECT_URI
   );
 }
 
@@ -81,6 +84,54 @@ export function getAuthenticatedClient() {
   return oauth2Client;
 }
 
+/**
+ * Wait for the OAuth callback on a local HTTP server.
+ * Returns the authorization code from the query string.
+ */
+function waitForAuthCode(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      try {
+        const url = new URL(req.url || "/", REDIRECT_URI);
+        const code = url.searchParams.get("code");
+        const error = url.searchParams.get("error");
+
+        if (error) {
+          res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
+          res.end(`<h1>Authentication failed</h1><p>${error}</p><p>You can close this window.</p>`);
+          server.close();
+          reject(new Error(`OAuth error: ${error}`));
+          return;
+        }
+
+        if (code) {
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+          res.end("<h1>Authentication successful!</h1><p>You can close this window and return to the terminal.</p>");
+          server.close();
+          resolve(code);
+          return;
+        }
+
+        res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
+        res.end("<h1>No authorization code received</h1><p>Please try again.</p>");
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "text/html; charset=utf-8" });
+        res.end("<h1>Internal error</h1>");
+        server.close();
+        reject(err);
+      }
+    });
+
+    server.listen(REDIRECT_PORT, () => {
+      console.log(`Listening on ${REDIRECT_URI} for OAuth callback...`);
+    });
+
+    server.on("error", (err) => {
+      reject(new Error(`Failed to start local server on port ${REDIRECT_PORT}: ${err.message}`));
+    });
+  });
+}
+
 // CLI authentication flow
 async function authenticate() {
   const credentials = loadCredentials();
@@ -92,21 +143,22 @@ async function authenticate() {
     prompt: "consent",
   });
 
-  console.log("Authorize this app by visiting this URL:\n");
+  console.log("Opening browser for authorization...\n");
+  console.log("If the browser does not open automatically, visit this URL:\n");
   console.log(authUrl);
   console.log();
 
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
+  // Try to open browser automatically
+  const { exec } = await import("node:child_process");
+  const platform = process.platform;
+  const openCmd =
+    platform === "darwin" ? "open" :
+    platform === "win32" ? "start" :
+    "xdg-open";
+  exec(`${openCmd} "${authUrl}"`);
 
-  const code = await new Promise<string>((resolve) => {
-    rl.question("Enter the authorization code: ", (answer) => {
-      rl.close();
-      resolve(answer.trim());
-    });
-  });
+  // Wait for the callback
+  const code = await waitForAuthCode();
 
   const { tokens } = await oauth2Client.getToken(code);
 
