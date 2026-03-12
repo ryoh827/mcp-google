@@ -21,14 +21,14 @@ interface Credentials {
 function getCredentialsPath(): string {
   return (
     process.env.GCAL_CREDENTIALS_PATH ||
-    path.join(process.env.HOME || "~", ".config", "mcp-gcal", "credentials.json")
+    path.join(process.env.HOME || "~", ".mcp-gcal", "credentials.json")
   );
 }
 
 function getTokenPath(): string {
   return (
     process.env.GCAL_TOKEN_PATH ||
-    path.join(process.env.HOME || "~", ".config", "mcp-gcal", "token.json")
+    path.join(process.env.HOME || "~", ".mcp-gcal", "token.json")
   );
 }
 

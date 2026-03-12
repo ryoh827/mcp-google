@@ -20,7 +20,7 @@ npm install
 6. Download the JSON and save it as:
 
 ```
-~/.config/mcp-gcal/credentials.json
+~/.mcp-gcal/credentials.json
 ```
 
 Or set `GCAL_CREDENTIALS_PATH` environment variable to your preferred path.
@@ -31,7 +31,7 @@ Or set `GCAL_CREDENTIALS_PATH` environment variable to your preferred path.
 npm run auth
 ```
 
-This will open a URL for Google OAuth consent. After authorization, a token will be saved to `~/.config/mcp-gcal/token.json`.
+This will open a URL for Google OAuth consent. After authorization, a token will be saved to `~/.mcp-gcal/token.json`.
 
 ### 4. Build
 
