@@ -31,7 +31,13 @@ Or set `GCAL_CREDENTIALS_PATH` environment variable to your preferred path.
 npm run auth
 ```
 
-This will open a URL for Google OAuth consent. After authorization, a token will be saved to `~/.mcp-gcal/token.json`.
+This will display an authorization URL. Open it in your browser, grant access, and you will be redirected to a URL like:
+
+```
+http://localhost/?code=4/0AfrIep...&scope=...
+```
+
+Copy the `code` parameter value from the URL and paste it into the terminal prompt. The token will be saved to `~/.mcp-gcal/token.json`.
 
 ### 4. Build
 
