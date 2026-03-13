@@ -97,9 +97,6 @@ Or with environment variables:
 |------|-------------|
 | `list_events` | List upcoming events from Google Calendar |
 | `get_event` | Get details of a specific event |
-| `create_event` | Create a new event |
-| `update_event` | Update an existing event |
-| `delete_event` | Delete an event |
 | `list_calendars` | List all available calendars |
 
 ### Tasks
