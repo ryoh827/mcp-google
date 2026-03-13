@@ -52,7 +52,7 @@ npm run build
 #### Claude Code CLI
 
 ```bash
-claude mcp add gcal node /path/to/mcp-gcal/dist/index.js
+claude mcp add google node /path/to/mcp-google/dist/index.js
 ```
 
 #### JSON configuration
