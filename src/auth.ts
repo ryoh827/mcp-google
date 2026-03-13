@@ -3,7 +3,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as readline from "node:readline";
 
-const SCOPES = ["https://www.googleapis.com/auth/calendar"];
+const SCOPES = [
+  "https://www.googleapis.com/auth/calendar",
+  "https://www.googleapis.com/auth/tasks",
+];
 
 interface Credentials {
   installed?: {
@@ -20,15 +23,17 @@ interface Credentials {
 
 function getCredentialsPath(): string {
   return (
+    process.env.GOOGLE_CREDENTIALS_PATH ||
     process.env.GCAL_CREDENTIALS_PATH ||
-    path.join(process.env.HOME || "~", ".mcp-gcal", "credentials.json")
+    path.join(process.env.HOME || "~", ".mcp-google", "credentials.json")
   );
 }
 
 function getTokenPath(): string {
   return (
+    process.env.GOOGLE_TOKEN_PATH ||
     process.env.GCAL_TOKEN_PATH ||
-    path.join(process.env.HOME || "~", ".mcp-gcal", "token.json")
+    path.join(process.env.HOME || "~", ".mcp-google", "token.json")
   );
 }
 
@@ -38,7 +43,7 @@ export function loadCredentials(): Credentials {
     throw new Error(
       `Credentials file not found at ${credentialsPath}.\n` +
         "Please download your OAuth 2.0 credentials from Google Cloud Console\n" +
-        "and place them at the path above, or set GCAL_CREDENTIALS_PATH."
+        "and place them at the path above, or set GOOGLE_CREDENTIALS_PATH."
     );
   }
   return JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
