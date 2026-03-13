@@ -15,14 +15,26 @@ import {
   formatEventsForDisplay,
   formatEventCreatedForDisplay,
 } from "./calendar.js";
+import {
+  createTasksClient,
+  listTaskLists,
+  listTasks,
+  createTask,
+  updateTask,
+  deleteTask,
+  getTask,
+  formatTasksForDisplay,
+  formatTaskListsForDisplay,
+} from "./tasks.js";
 
 const server = new McpServer({
-  name: "mcp-gcal",
-  version: "1.0.0",
+  name: "mcp-google",
+  version: "2.0.0",
 });
 
-// Lazy initialization of calendar client
+// Lazy initialization of clients
 let calendarClient: ReturnType<typeof createCalendarClient> | null = null;
+let tasksClient: ReturnType<typeof createTasksClient> | null = null;
 
 function getCalendar() {
   if (!calendarClient) {
@@ -30,6 +42,14 @@ function getCalendar() {
     calendarClient = createCalendarClient(auth);
   }
   return calendarClient;
+}
+
+function getTasks() {
+  if (!tasksClient) {
+    const auth = getAuthenticatedClient();
+    tasksClient = createTasksClient(auth);
+  }
+  return tasksClient;
 }
 
 // --- Tools ---
@@ -222,12 +242,161 @@ server.tool(
   }
 );
 
+// --- Tasks Tools ---
+
+server.tool(
+  "list_task_lists",
+  "List all Google Tasks task lists",
+  {
+    maxResults: z.number().optional().describe("Maximum number of task lists to return (default: 20)"),
+  },
+  async (params) => {
+    try {
+      const taskLists = await listTaskLists(getTasks(), params.maxResults);
+      return {
+        content: [{ type: "text" as const, text: formatTaskListsForDisplay(taskLists) }],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: "text" as const, text: `Error listing task lists: ${message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
+  "list_tasks",
+  "List tasks from a Google Tasks task list",
+  {
+    taskListId: z.string().optional().describe("Task list ID (default: @default)"),
+    maxResults: z.number().optional().describe("Maximum number of tasks to return (default: 20)"),
+    showCompleted: z.boolean().optional().describe("Whether to show completed tasks (default: false)"),
+    showHidden: z.boolean().optional().describe("Whether to show hidden tasks (default: false)"),
+    dueMin: z.string().optional().describe("Minimum due date (RFC 3339 format)"),
+    dueMax: z.string().optional().describe("Maximum due date (RFC 3339 format)"),
+  },
+  async (params) => {
+    try {
+      const tasks = await listTasks(getTasks(), params);
+      return {
+        content: [{ type: "text" as const, text: formatTasksForDisplay(tasks) }],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: "text" as const, text: `Error listing tasks: ${message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
+  "get_task",
+  "Get details of a specific task",
+  {
+    taskListId: z.string().optional().describe("Task list ID (default: @default)"),
+    taskId: z.string().describe("Task ID"),
+  },
+  async (params) => {
+    try {
+      const task = await getTask(getTasks(), params.taskListId, params.taskId);
+      return {
+        content: [{ type: "text" as const, text: formatTasksForDisplay([task]) }],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: "text" as const, text: `Error getting task: ${message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
+  "create_task",
+  "Create a new task in Google Tasks",
+  {
+    taskListId: z.string().optional().describe("Task list ID (default: @default)"),
+    title: z.string().describe("Task title"),
+    notes: z.string().optional().describe("Task notes/description"),
+    due: z.string().optional().describe("Due date in RFC 3339 format (e.g., 2026-03-15T00:00:00.000Z)"),
+  },
+  async (params) => {
+    try {
+      const task = await createTask(getTasks(), params);
+      return {
+        content: [{ type: "text" as const, text: `Task created successfully.\n${formatTasksForDisplay([task])}` }],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: "text" as const, text: `Error creating task: ${message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
+  "update_task",
+  "Update an existing task in Google Tasks",
+  {
+    taskListId: z.string().optional().describe("Task list ID (default: @default)"),
+    taskId: z.string().describe("Task ID to update"),
+    title: z.string().optional().describe("New task title"),
+    notes: z.string().optional().describe("New task notes/description"),
+    due: z.string().optional().describe("New due date in RFC 3339 format"),
+    status: z.enum(["needsAction", "completed"]).optional().describe("Task status: 'needsAction' or 'completed'"),
+  },
+  async (params) => {
+    try {
+      const task = await updateTask(getTasks(), params);
+      return {
+        content: [{ type: "text" as const, text: `Task updated successfully.\n${formatTasksForDisplay([task])}` }],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: "text" as const, text: `Error updating task: ${message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
+  "delete_task",
+  "Delete a task from Google Tasks",
+  {
+    taskListId: z.string().optional().describe("Task list ID (default: @default)"),
+    taskId: z.string().describe("Task ID to delete"),
+  },
+  async (params) => {
+    try {
+      await deleteTask(getTasks(), params.taskListId, params.taskId);
+      return {
+        content: [{ type: "text" as const, text: `Task ${params.taskId} deleted successfully.` }],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: "text" as const, text: `Error deleting task: ${message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
 // --- Start Server ---
 
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("mcp-gcal server started on stdio");
+  console.error("mcp-google server started on stdio");
 }
 
 main().catch((error) => {

@@ -1,6 +1,6 @@
-# mcp-gcal
+# mcp-google
 
-MCP (Model Context Protocol) server for Google Calendar integration.
+MCP (Model Context Protocol) server for Google services integration (Calendar, Tasks).
 
 ## Setup
 
@@ -14,16 +14,16 @@ npm install
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project (or select existing)
-3. Enable the **Google Calendar API**
+3. Enable the **Google Calendar API** and **Google Tasks API**
 4. Go to **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**
 5. Application type: **Desktop app**
 6. Download the JSON and save it as:
 
 ```
-~/.mcp-gcal/credentials.json
+~/.mcp-google/credentials.json
 ```
 
-Or set `GCAL_CREDENTIALS_PATH` environment variable to your preferred path.
+Or set `GOOGLE_CREDENTIALS_PATH` environment variable to your preferred path.
 
 ### 3. Authenticate
 
@@ -37,7 +37,7 @@ This will display an authorization URL. Open it in your browser, grant access, a
 http://localhost/?code=4/0AfrIep...&scope=...
 ```
 
-Copy the `code` parameter value from the URL and paste it into the terminal prompt. The token will be saved to `~/.mcp-gcal/token.json`.
+Copy the `code` parameter value from the URL and paste it into the terminal prompt. The token will be saved to `~/.mcp-google/token.json`.
 
 ### 4. Build
 
@@ -54,9 +54,9 @@ Add to your MCP configuration:
 ```json
 {
   "mcpServers": {
-    "gcal": {
+    "google": {
       "command": "node",
-      "args": ["/path/to/mcp-gcal/dist/index.js"]
+      "args": ["/path/to/mcp-google/dist/index.js"]
     }
   }
 }
@@ -67,19 +67,23 @@ Or with environment variables:
 ```json
 {
   "mcpServers": {
-    "gcal": {
+    "google": {
       "command": "node",
-      "args": ["/path/to/mcp-gcal/dist/index.js"],
+      "args": ["/path/to/mcp-google/dist/index.js"],
       "env": {
-        "GCAL_CREDENTIALS_PATH": "/path/to/credentials.json",
-        "GCAL_TOKEN_PATH": "/path/to/token.json"
+        "GOOGLE_CREDENTIALS_PATH": "/path/to/credentials.json",
+        "GOOGLE_TOKEN_PATH": "/path/to/token.json"
       }
     }
   }
 }
 ```
 
+> **Note:** Legacy environment variables `GCAL_CREDENTIALS_PATH` and `GCAL_TOKEN_PATH` are still supported for backward compatibility.
+
 ## Available Tools
+
+### Calendar
 
 | Tool | Description |
 |------|-------------|
@@ -89,6 +93,17 @@ Or with environment variables:
 | `update_event` | Update an existing event |
 | `delete_event` | Delete an event |
 | `list_calendars` | List all available calendars |
+
+### Tasks
+
+| Tool | Description |
+|------|-------------|
+| `list_task_lists` | List all task lists |
+| `list_tasks` | List tasks from a task list |
+| `get_task` | Get details of a specific task |
+| `create_task` | Create a new task |
+| `update_task` | Update an existing task (title, notes, due date, status) |
+| `delete_task` | Delete a task |
 
 ## Development
 
