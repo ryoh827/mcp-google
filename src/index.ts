@@ -7,13 +7,9 @@ import { getAuthenticatedClient } from "./auth.js";
 import {
   createCalendarClient,
   listEvents,
-  createEvent,
-  updateEvent,
-  deleteEvent,
   getEvent,
   listCalendars,
   formatEventsForDisplay,
-  formatEventCreatedForDisplay,
 } from "./calendar.js";
 import {
   createTasksClient,
@@ -107,102 +103,6 @@ server.tool(
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: "text" as const, text: `Error getting event: ${message}` }],
-        isError: true,
-      };
-    }
-  }
-);
-
-server.tool(
-  "create_event",
-  "Create a new event in Google Calendar",
-  {
-    calendarId: z.string().optional().describe("Calendar ID (default: primary)"),
-    summary: z.string().describe("Event title"),
-    description: z.string().optional().describe("Event description"),
-    location: z.string().optional().describe("Event location"),
-    startDateTime: z.string().describe("Start date/time in ISO 8601 format"),
-    endDateTime: z.string().describe("End date/time in ISO 8601 format"),
-    timeZone: z.string().optional().describe("Time zone (e.g., Asia/Tokyo)"),
-    attendees: z.array(z.string()).optional().describe("List of attendee email addresses"),
-  },
-  async (params) => {
-    try {
-      const event = await createEvent(getCalendar(), params);
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: formatEventCreatedForDisplay(event),
-          },
-        ],
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return {
-        content: [{ type: "text" as const, text: `Error creating event: ${message}` }],
-        isError: true,
-      };
-    }
-  }
-);
-
-server.tool(
-  "update_event",
-  "Update an existing event in Google Calendar",
-  {
-    calendarId: z.string().optional().describe("Calendar ID (default: primary)"),
-    eventId: z.string().describe("Event ID to update"),
-    summary: z.string().optional().describe("New event title"),
-    description: z.string().optional().describe("New event description"),
-    location: z.string().optional().describe("New event location"),
-    startDateTime: z.string().optional().describe("New start date/time in ISO 8601 format"),
-    endDateTime: z.string().optional().describe("New end date/time in ISO 8601 format"),
-    timeZone: z.string().optional().describe("Time zone (e.g., Asia/Tokyo)"),
-  },
-  async (params) => {
-    try {
-      const event = await updateEvent(getCalendar(), params);
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Event updated successfully.\n${formatEventsForDisplay([event])}`,
-          },
-        ],
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return {
-        content: [{ type: "text" as const, text: `Error updating event: ${message}` }],
-        isError: true,
-      };
-    }
-  }
-);
-
-server.tool(
-  "delete_event",
-  "Delete an event from Google Calendar",
-  {
-    calendarId: z.string().optional().describe("Calendar ID (default: primary)"),
-    eventId: z.string().describe("Event ID to delete"),
-  },
-  async (params) => {
-    try {
-      await deleteEvent(getCalendar(), params.calendarId, params.eventId);
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Event ${params.eventId} deleted successfully.`,
-          },
-        ],
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return {
-        content: [{ type: "text" as const, text: `Error deleting event: ${message}` }],
         isError: true,
       };
     }
