@@ -32,17 +32,17 @@ const server = new McpServer({
 let calendarClient: ReturnType<typeof createCalendarClient> | null = null;
 let tasksClient: ReturnType<typeof createTasksClient> | null = null;
 
-function getCalendar() {
+async function getCalendar() {
   if (!calendarClient) {
-    const auth = getAuthenticatedClient();
+    const auth = await getAuthenticatedClient();
     calendarClient = createCalendarClient(auth);
   }
   return calendarClient;
 }
 
-function getTasks() {
+async function getTasks() {
   if (!tasksClient) {
-    const auth = getAuthenticatedClient();
+    const auth = await getAuthenticatedClient();
     tasksClient = createTasksClient(auth);
   }
   return tasksClient;
@@ -62,7 +62,7 @@ server.tool(
   },
   async (params) => {
     try {
-      const events = await listEvents(getCalendar(), params);
+      const events = await listEvents(await getCalendar(), params);
       return {
         content: [
           {
@@ -90,7 +90,7 @@ server.tool(
   },
   async (params) => {
     try {
-      const event = await getEvent(getCalendar(), params.calendarId, params.eventId);
+      const event = await getEvent(await getCalendar(), params.calendarId, params.eventId);
       return {
         content: [
           {
@@ -115,7 +115,7 @@ server.tool(
   {},
   async () => {
     try {
-      const calendars = await listCalendars(getCalendar());
+      const calendars = await listCalendars(await getCalendar());
       if (calendars.length === 0) {
         return {
           content: [{ type: "text" as const, text: "No calendars found." }],
@@ -152,7 +152,7 @@ server.tool(
   },
   async (params) => {
     try {
-      const taskLists = await listTaskLists(getTasks(), params.maxResults);
+      const taskLists = await listTaskLists(await getTasks(), params.maxResults);
       return {
         content: [{ type: "text" as const, text: formatTaskListsForDisplay(taskLists) }],
       };
@@ -179,7 +179,7 @@ server.tool(
   },
   async (params) => {
     try {
-      const tasks = await listTasks(getTasks(), params);
+      const tasks = await listTasks(await getTasks(), params);
       return {
         content: [{ type: "text" as const, text: formatTasksForDisplay(tasks) }],
       };
@@ -202,7 +202,7 @@ server.tool(
   },
   async (params) => {
     try {
-      const task = await getTask(getTasks(), params.taskListId, params.taskId);
+      const task = await getTask(await getTasks(), params.taskListId, params.taskId);
       return {
         content: [{ type: "text" as const, text: formatTasksForDisplay([task]) }],
       };
@@ -227,7 +227,7 @@ server.tool(
   },
   async (params) => {
     try {
-      const task = await createTask(getTasks(), params);
+      const task = await createTask(await getTasks(), params);
       return {
         content: [{ type: "text" as const, text: `Task created successfully.\n${formatTasksForDisplay([task])}` }],
       };
@@ -254,7 +254,7 @@ server.tool(
   },
   async (params) => {
     try {
-      const task = await updateTask(getTasks(), params);
+      const task = await updateTask(await getTasks(), params);
       return {
         content: [{ type: "text" as const, text: `Task updated successfully.\n${formatTasksForDisplay([task])}` }],
       };
@@ -277,7 +277,7 @@ server.tool(
   },
   async (params) => {
     try {
-      await deleteTask(getTasks(), params.taskListId, params.taskId);
+      await deleteTask(await getTasks(), params.taskListId, params.taskId);
       return {
         content: [{ type: "text" as const, text: `Task ${params.taskId} deleted successfully.` }],
       };
