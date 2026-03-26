@@ -28,13 +28,21 @@ const server = new McpServer({
   version: "2.0.0",
 });
 
-// Lazy initialization of clients
+// Shared auth client promise - resolved eagerly at startup
+let authClientPromise: ReturnType<typeof getAuthenticatedClient> | null = null;
+
+function getAuthClient() {
+  authClientPromise ??= getAuthenticatedClient();
+  return authClientPromise;
+}
+
+// Lazy initialization of clients (auth is already resolved at startup)
 let calendarClient: ReturnType<typeof createCalendarClient> | null = null;
 let tasksClient: ReturnType<typeof createTasksClient> | null = null;
 
 async function getCalendar() {
   if (!calendarClient) {
-    const auth = await getAuthenticatedClient();
+    const auth = await getAuthClient();
     calendarClient = createCalendarClient(auth);
   }
   return calendarClient;
@@ -42,7 +50,7 @@ async function getCalendar() {
 
 async function getTasks() {
   if (!tasksClient) {
-    const auth = await getAuthenticatedClient();
+    const auth = await getAuthClient();
     tasksClient = createTasksClient(auth);
   }
   return tasksClient;
@@ -294,6 +302,8 @@ server.tool(
 // --- Start Server ---
 
 async function main() {
+  // Eagerly warm up auth to fail-fast on token issues before accepting tool calls
+  await getAuthClient();
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("mcp-google server started on stdio");

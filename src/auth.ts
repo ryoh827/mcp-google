@@ -100,8 +100,13 @@ export async function getAuthenticatedClient() {
       oauth2Client.setCredentials(refreshedCredentials);
       // Token is saved via the "tokens" event handler above
     } catch (err: unknown) {
+      // Check structured OAuth error field first, fall back to string match
+      const oauthError =
+        typeof err === "object" && err !== null && "response" in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : undefined;
       const message = err instanceof Error ? err.message : String(err);
-      if (message.includes("invalid_grant")) {
+      if (oauthError === "invalid_grant" || message.includes("invalid_grant")) {
         throw new Error(
           "Refresh token has expired (invalid_grant). Re-authentication is required.\n" +
             "Run 'npm run auth' to re-authenticate.\n" +
