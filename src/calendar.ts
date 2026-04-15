@@ -63,6 +63,14 @@ export interface CreateEventParams {
   timeZone?: string;
 }
 
+function parseDateTime(value: string, fieldName: string): Date {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    throw new Error(`Invalid ${fieldName}: ${value}`);
+  }
+  return d;
+}
+
 export async function createEvent(
   calendar: calendar_v3.Calendar,
   params: CreateEventParams
@@ -80,6 +88,11 @@ export async function createEvent(
 
   const isAllDay = /^\d{4}-\d{2}-\d{2}$/.test(start);
 
+  // Validate start for timed events
+  if (!isAllDay) {
+    parseDateTime(start, "start");
+  }
+
   const startObj: calendar_v3.Schema$EventDateTime = isAllDay
     ? { date: start }
     : { dateTime: start, timeZone };
@@ -87,6 +100,19 @@ export async function createEvent(
   let endObj: calendar_v3.Schema$EventDateTime;
   if (end) {
     const isEndAllDay = /^\d{4}-\d{2}-\d{2}$/.test(end);
+    if (isAllDay !== isEndAllDay) {
+      throw new Error("start and end must both be all-day (YYYY-MM-DD) or both be timed (ISO 8601 dateTime)");
+    }
+    if (isAllDay && end <= start) {
+      throw new Error("end date must be after start date for all-day events");
+    }
+    if (!isAllDay) {
+      const startTime = parseDateTime(start, "start");
+      const endTime = parseDateTime(end, "end");
+      if (endTime <= startTime) {
+        throw new Error("end time must be after start time");
+      }
+    }
     endObj = isEndAllDay ? { date: end } : { dateTime: end, timeZone };
   } else if (isAllDay) {
     // All-day event: end = next day
@@ -95,7 +121,8 @@ export async function createEvent(
     endObj = { date: nextDay.toISOString().split("T")[0] };
   } else {
     // Timed event: end = start + 1 hour
-    const endTime = new Date(new Date(start).getTime() + 60 * 60 * 1000);
+    const startTime = parseDateTime(start, "start");
+    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
     endObj = { dateTime: endTime.toISOString(), timeZone };
   }
 
@@ -141,6 +168,20 @@ export async function updateEvent(
     location,
     timeZone,
   } = params;
+
+  if (
+    summary === undefined &&
+    description === undefined &&
+    location === undefined &&
+    start === undefined &&
+    end === undefined
+  ) {
+    throw new Error("At least one field to update must be provided (summary, description, location, start, or end).");
+  }
+
+  if (timeZone !== undefined && start === undefined && end === undefined) {
+    throw new Error("timeZone can only be used together with start or end.");
+  }
 
   // Fetch existing event first
   const existing = await calendar.events.get({ calendarId, eventId });
