@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as readline from "node:readline";
 
 const SCOPES = [
-  "https://www.googleapis.com/auth/calendar.readonly",
+  "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/tasks",
 ];
 

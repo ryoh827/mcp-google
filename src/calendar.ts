@@ -52,6 +52,127 @@ export async function listCalendars(calendar: calendar_v3.Calendar) {
   return response.data.items || [];
 }
 
+export interface CreateEventParams {
+  calendarId?: string;
+  summary: string;
+  start: string;
+  end?: string;
+  description?: string;
+  location?: string;
+  recurrence?: string[];
+  timeZone?: string;
+}
+
+export async function createEvent(
+  calendar: calendar_v3.Calendar,
+  params: CreateEventParams
+) {
+  const {
+    calendarId = "primary",
+    summary,
+    start,
+    end,
+    description,
+    location,
+    recurrence,
+    timeZone,
+  } = params;
+
+  const isAllDay = /^\d{4}-\d{2}-\d{2}$/.test(start);
+
+  const startObj: calendar_v3.Schema$EventDateTime = isAllDay
+    ? { date: start }
+    : { dateTime: start, timeZone };
+
+  let endObj: calendar_v3.Schema$EventDateTime;
+  if (end) {
+    const isEndAllDay = /^\d{4}-\d{2}-\d{2}$/.test(end);
+    endObj = isEndAllDay ? { date: end } : { dateTime: end, timeZone };
+  } else if (isAllDay) {
+    // All-day event: end = next day
+    const nextDay = new Date(start);
+    nextDay.setDate(nextDay.getDate() + 1);
+    endObj = { date: nextDay.toISOString().split("T")[0] };
+  } else {
+    // Timed event: end = start + 1 hour
+    const endTime = new Date(new Date(start).getTime() + 60 * 60 * 1000);
+    endObj = { dateTime: endTime.toISOString(), timeZone };
+  }
+
+  const requestBody: calendar_v3.Schema$Event = {
+    summary,
+    start: startObj,
+    end: endObj,
+    description,
+    location,
+    recurrence,
+  };
+
+  const response = await calendar.events.insert({
+    calendarId,
+    requestBody,
+  });
+
+  return response.data;
+}
+
+export interface UpdateEventParams {
+  calendarId?: string;
+  eventId: string;
+  summary?: string;
+  start?: string;
+  end?: string;
+  description?: string;
+  location?: string;
+  timeZone?: string;
+}
+
+export async function updateEvent(
+  calendar: calendar_v3.Calendar,
+  params: UpdateEventParams
+) {
+  const {
+    calendarId = "primary",
+    eventId,
+    summary,
+    start,
+    end,
+    description,
+    location,
+    timeZone,
+  } = params;
+
+  // Fetch existing event first
+  const existing = await calendar.events.get({ calendarId, eventId });
+  const patch: calendar_v3.Schema$Event = {};
+
+  if (summary !== undefined) patch.summary = summary;
+  if (description !== undefined) patch.description = description;
+  if (location !== undefined) patch.location = location;
+
+  if (start !== undefined) {
+    const isAllDay = /^\d{4}-\d{2}-\d{2}$/.test(start);
+    patch.start = isAllDay
+      ? { date: start }
+      : { dateTime: start, timeZone: timeZone || existing.data.start?.timeZone || undefined };
+  }
+
+  if (end !== undefined) {
+    const isEndAllDay = /^\d{4}-\d{2}-\d{2}$/.test(end);
+    patch.end = isEndAllDay
+      ? { date: end }
+      : { dateTime: end, timeZone: timeZone || existing.data.end?.timeZone || undefined };
+  }
+
+  const response = await calendar.events.patch({
+    calendarId,
+    eventId,
+    requestBody: patch,
+  });
+
+  return response.data;
+}
+
 function formatEventForDisplay(event: calendar_v3.Schema$Event): string {
   const start = event.start?.dateTime || event.start?.date || "N/A";
   const end = event.end?.dateTime || event.end?.date || "N/A";
