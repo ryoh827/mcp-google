@@ -29,18 +29,29 @@ export async function listMessages(
   const messageIds = response.data.messages || [];
   if (messageIds.length === 0) return [];
 
-  // Fetch metadata for each message
-  const messages = await Promise.all(
-    messageIds.map(async (msg) => {
-      const detail = await gmail.users.messages.get({
+  // Filter out entries without a valid ID
+  const ids = messageIds
+    .map((msg) => msg.id)
+    .filter((id): id is string => Boolean(id));
+
+  // Fetch metadata for each message (partial failure tolerant)
+  const settled = await Promise.allSettled(
+    ids.map((id) =>
+      gmail.users.messages.get({
         userId: "me",
-        id: msg.id!,
+        id,
         format: "metadata",
         metadataHeaders: ["From", "To", "Subject", "Date"],
-      });
-      return detail.data;
-    })
+      })
+    )
   );
+
+  const messages: gmail_v1.Schema$Message[] = [];
+  for (const result of settled) {
+    if (result.status === "fulfilled") {
+      messages.push(result.value.data);
+    }
+  }
 
   return messages;
 }
