@@ -1,7 +1,7 @@
 {
   "name": "mcp-google",
   "version": "2.0.0",
-  "description": "MCP server for Google services (Calendar, Tasks)",
+  "description": "MCP server for Google services (Calendar, Tasks, Gmail)",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
