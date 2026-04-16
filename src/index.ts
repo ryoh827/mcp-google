@@ -9,6 +9,8 @@ import {
   listEvents,
   getEvent,
   listCalendars,
+  createEvent,
+  updateEvent,
   formatEventsForDisplay,
 } from "./calendar.js";
 import {
@@ -136,6 +138,76 @@ server.tool(
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: "text" as const, text: `Error listing calendars: ${message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+// --- Calendar Write Tools ---
+
+server.tool(
+  "create_event",
+  "Create a new event in Google Calendar",
+  {
+    summary: z.string().describe("Event title"),
+    start: z.string().describe("Start time in ISO 8601 format (e.g., '2026-04-15T22:00:00+09:00') or date only (e.g., '2026-04-15') for all-day events"),
+    end: z.string().optional().describe("End time in ISO 8601 format. Defaults to 1 hour after start for timed events, or next day for all-day events"),
+    description: z.string().optional().describe("Event description"),
+    location: z.string().optional().describe("Event location"),
+    calendarId: z.string().optional().describe("Calendar ID (default: primary)"),
+    recurrence: z.array(z.string()).optional().describe("Recurrence rules in RFC 5545 format (e.g., ['RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR'])"),
+    timeZone: z.string().optional().describe("Time zone (e.g., 'Asia/Tokyo'). Defaults to calendar's time zone"),
+  },
+  async (params) => {
+    try {
+      const event = await createEvent(getCalendar(), params);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Event created successfully.\n${formatEventsForDisplay([event])}`,
+          },
+        ],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: "text" as const, text: `Error creating event: ${message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
+  "update_event",
+  "Update an existing event in Google Calendar (move/reschedule, rename, etc.)",
+  {
+    eventId: z.string().describe("Event ID to update"),
+    summary: z.string().optional().describe("New event title"),
+    start: z.string().optional().describe("New start time in ISO 8601 format"),
+    end: z.string().optional().describe("New end time in ISO 8601 format"),
+    description: z.string().optional().describe("New event description"),
+    location: z.string().optional().describe("New event location"),
+    calendarId: z.string().optional().describe("Calendar ID (default: primary)"),
+    timeZone: z.string().optional().describe("Time zone (e.g., 'Asia/Tokyo')"),
+  },
+  async (params) => {
+    try {
+      const event = await updateEvent(getCalendar(), params);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Event updated successfully.\n${formatEventsForDisplay([event])}`,
+          },
+        ],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: "text" as const, text: `Error updating event: ${message}` }],
         isError: true,
       };
     }
