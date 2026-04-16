@@ -24,6 +24,15 @@ import {
   formatTasksForDisplay,
   formatTaskListsForDisplay,
 } from "./tasks.js";
+import {
+  createGmailClient,
+  listMessages,
+  getMessage,
+  listLabels,
+  formatMessagesForDisplay,
+  formatMessageForDisplay,
+  formatLabelsForDisplay,
+} from "./gmail.js";
 
 const server = new McpServer({
   name: "mcp-google",
@@ -33,6 +42,7 @@ const server = new McpServer({
 // Lazy initialization of clients
 let calendarClient: ReturnType<typeof createCalendarClient> | null = null;
 let tasksClient: ReturnType<typeof createTasksClient> | null = null;
+let gmailClient: ReturnType<typeof createGmailClient> | null = null;
 
 function getCalendar() {
   if (!calendarClient) {
@@ -48,6 +58,14 @@ function getTasks() {
     tasksClient = createTasksClient(auth);
   }
   return tasksClient;
+}
+
+function getGmail() {
+  if (!gmailClient) {
+    const auth = getAuthenticatedClient();
+    gmailClient = createGmailClient(auth);
+  }
+  return gmailClient;
 }
 
 // --- Tools ---
@@ -357,6 +375,76 @@ server.tool(
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: "text" as const, text: `Error deleting task: ${message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+// --- Gmail Tools ---
+
+server.tool(
+  "list_messages",
+  "List Gmail messages matching a search query",
+  {
+    query: z.string().optional().describe("Gmail search query (e.g., 'from:user@example.com', 'subject:invoice', 'is:unread')"),
+    maxResults: z.number().optional().describe("Maximum number of messages to return (default: 10)"),
+    labelIds: z.array(z.string()).optional().describe("Filter by label IDs (e.g., ['INBOX', 'UNREAD'])"),
+  },
+  async (params) => {
+    try {
+      const messages = await listMessages(getGmail(), params);
+      return {
+        content: [{ type: "text" as const, text: formatMessagesForDisplay(messages) }],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: "text" as const, text: `Error listing messages: ${message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
+  "get_message",
+  "Get details of a specific Gmail message including body",
+  {
+    messageId: z.string().describe("Message ID"),
+    format: z.enum(["full", "metadata", "minimal"]).optional().describe("Response format (default: full). 'full' includes body, 'metadata' includes headers only, 'minimal' includes IDs only"),
+  },
+  async (params) => {
+    try {
+      const msg = await getMessage(getGmail(), params);
+      const includeBody = (params.format || "full") === "full";
+      return {
+        content: [{ type: "text" as const, text: formatMessageForDisplay(msg, includeBody) }],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: "text" as const, text: `Error getting message: ${message}` }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
+  "list_labels",
+  "List all Gmail labels",
+  {},
+  async () => {
+    try {
+      const labels = await listLabels(getGmail());
+      return {
+        content: [{ type: "text" as const, text: formatLabelsForDisplay(labels) }],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: "text" as const, text: `Error listing labels: ${message}` }],
         isError: true,
       };
     }
