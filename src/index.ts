@@ -39,22 +39,30 @@ const server = new McpServer({
   version: "2.0.0",
 });
 
-// Lazy initialization of clients
+// Shared auth client promise - resolved eagerly at startup
+let authClientPromise: ReturnType<typeof getAuthenticatedClient> | null = null;
+
+function getAuthClient() {
+  authClientPromise ??= getAuthenticatedClient();
+  return authClientPromise;
+}
+
+// Lazy initialization of clients (auth is already resolved at startup)
 let calendarClient: ReturnType<typeof createCalendarClient> | null = null;
 let tasksClient: ReturnType<typeof createTasksClient> | null = null;
 let gmailClient: ReturnType<typeof createGmailClient> | null = null;
 
-function getCalendar() {
+async function getCalendar() {
   if (!calendarClient) {
-    const auth = getAuthenticatedClient();
+    const auth = await getAuthClient();
     calendarClient = createCalendarClient(auth);
   }
   return calendarClient;
 }
 
-function getTasks() {
+async function getTasks() {
   if (!tasksClient) {
-    const auth = getAuthenticatedClient();
+    const auth = await getAuthClient();
     tasksClient = createTasksClient(auth);
   }
   return tasksClient;
@@ -82,7 +90,7 @@ server.tool(
   },
   async (params) => {
     try {
-      const events = await listEvents(getCalendar(), params);
+      const events = await listEvents(await getCalendar(), params);
       return {
         content: [
           {
@@ -110,7 +118,7 @@ server.tool(
   },
   async (params) => {
     try {
-      const event = await getEvent(getCalendar(), params.calendarId, params.eventId);
+      const event = await getEvent(await getCalendar(), params.calendarId, params.eventId);
       return {
         content: [
           {
@@ -135,7 +143,7 @@ server.tool(
   {},
   async () => {
     try {
-      const calendars = await listCalendars(getCalendar());
+      const calendars = await listCalendars(await getCalendar());
       if (calendars.length === 0) {
         return {
           content: [{ type: "text" as const, text: "No calendars found." }],
@@ -242,7 +250,7 @@ server.tool(
   },
   async (params) => {
     try {
-      const taskLists = await listTaskLists(getTasks(), params.maxResults);
+      const taskLists = await listTaskLists(await getTasks(), params.maxResults);
       return {
         content: [{ type: "text" as const, text: formatTaskListsForDisplay(taskLists) }],
       };
@@ -269,7 +277,7 @@ server.tool(
   },
   async (params) => {
     try {
-      const tasks = await listTasks(getTasks(), params);
+      const tasks = await listTasks(await getTasks(), params);
       return {
         content: [{ type: "text" as const, text: formatTasksForDisplay(tasks) }],
       };
@@ -292,7 +300,7 @@ server.tool(
   },
   async (params) => {
     try {
-      const task = await getTask(getTasks(), params.taskListId, params.taskId);
+      const task = await getTask(await getTasks(), params.taskListId, params.taskId);
       return {
         content: [{ type: "text" as const, text: formatTasksForDisplay([task]) }],
       };
@@ -317,7 +325,7 @@ server.tool(
   },
   async (params) => {
     try {
-      const task = await createTask(getTasks(), params);
+      const task = await createTask(await getTasks(), params);
       return {
         content: [{ type: "text" as const, text: `Task created successfully.\n${formatTasksForDisplay([task])}` }],
       };
@@ -344,7 +352,7 @@ server.tool(
   },
   async (params) => {
     try {
-      const task = await updateTask(getTasks(), params);
+      const task = await updateTask(await getTasks(), params);
       return {
         content: [{ type: "text" as const, text: `Task updated successfully.\n${formatTasksForDisplay([task])}` }],
       };
@@ -367,7 +375,7 @@ server.tool(
   },
   async (params) => {
     try {
-      await deleteTask(getTasks(), params.taskListId, params.taskId);
+      await deleteTask(await getTasks(), params.taskListId, params.taskId);
       return {
         content: [{ type: "text" as const, text: `Task ${params.taskId} deleted successfully.` }],
       };
@@ -454,6 +462,8 @@ server.tool(
 // --- Start Server ---
 
 async function main() {
+  // Eagerly warm up auth to fail-fast on token issues before accepting tool calls
+  await getAuthClient();
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("mcp-google server started on stdio");

@@ -62,7 +62,7 @@ export function createOAuth2Client(credentials: Credentials) {
   );
 }
 
-export function getAuthenticatedClient() {
+export async function getAuthenticatedClient() {
   const credentials = loadCredentials();
   const oauth2Client = createOAuth2Client(credentials);
   const tokenPath = getTokenPath();
@@ -77,12 +77,47 @@ export function getAuthenticatedClient() {
   const token = JSON.parse(fs.readFileSync(tokenPath, "utf-8"));
   oauth2Client.setCredentials(token);
 
-  // Auto-refresh token on expiry
+  // Auto-save refreshed tokens to disk
   oauth2Client.on("tokens", (tokens) => {
-    const currentToken = JSON.parse(fs.readFileSync(tokenPath, "utf-8"));
-    const updatedToken = { ...currentToken, ...tokens };
-    fs.writeFileSync(tokenPath, JSON.stringify(updatedToken, null, 2));
+    try {
+      const currentToken = JSON.parse(fs.readFileSync(tokenPath, "utf-8"));
+      const updatedToken = { ...currentToken, ...tokens };
+      fs.writeFileSync(tokenPath, JSON.stringify(updatedToken, null, 2));
+      console.error("Token refreshed and saved to disk.");
+    } catch (err) {
+      console.error("Failed to save refreshed token:", err);
+    }
   });
+
+  // Proactively refresh if access token is expired or expiring within 5 minutes
+  const now = Date.now();
+  const expiryDate = token.expiry_date || 0;
+  const bufferMs = 5 * 60 * 1000;
+
+  if (expiryDate < now + bufferMs) {
+    try {
+      console.error("Access token expired or expiring soon, refreshing...");
+      const { credentials: refreshedCredentials } = await oauth2Client.refreshAccessToken();
+      oauth2Client.setCredentials(refreshedCredentials);
+      // Token is saved via the "tokens" event handler above
+    } catch (err: unknown) {
+      // Check structured OAuth error field first, fall back to string match
+      const oauthError =
+        typeof err === "object" && err !== null && "response" in err
+          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
+          : undefined;
+      const message = err instanceof Error ? err.message : String(err);
+      if (oauthError === "invalid_grant" || message.includes("invalid_grant")) {
+        throw new Error(
+          "Refresh token has expired (invalid_grant). Re-authentication is required.\n" +
+            "Run 'npm run auth' to re-authenticate.\n" +
+            "Tip: If your Google Cloud project is in 'Testing' mode, refresh tokens expire after 7 days.\n" +
+            "Move to 'Production' mode in the OAuth consent screen to get long-lived refresh tokens."
+        );
+      }
+      throw err;
+    }
+  }
 
   return oauth2Client;
 }
